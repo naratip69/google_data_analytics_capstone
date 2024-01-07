@@ -1,0 +1,405 @@
+---
+title: "Bellabeast_Report"
+author: "Naratip"
+date: "2024-01-06"
+output: html_document
+---
+
+## Library preparation
+```{r library installation}
+install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+library("tidyverse")
+```
+
+## Preparing Data
+Using Data from [FitBit Fitness Tracker Data](https://www.kaggle.com/datasets/arashnic/fitbit)
+including:
+
+ * dailyActivity_merged
+ * sleepDay_merged
+ 
+```{r data loading}
+raw_activity <- read_csv("./data/dailyActivity_merged.csv")
+raw_sleep <- read_csv("./data/sleepDay_merged.csv")
+```
+
+### Activity Data
+```{r}
+head(raw_activity)
+```
+### Sleep Data
+```{r}
+head(raw_sleep)
+```
+
+## Processing Data
+droping irrelevant and duplicate columns from activity data, rename the columns to lowercase, and sort data by date
+```{r}
+activity <- select(raw_activity, -c("TrackerDistance", "LoggedActivitiesDistance", "SedentaryActiveDistance")) %>% 
+  rename_with(tolower) %>% 
+  rename(total_dis = totaldistance, veryactive_dis = veryactivedistance,moderate_dis = moderatelyactivedistance,
+         light_dis = lightactivedistance, veryactive_min = veryactiveminutes, moderate_min = fairlyactiveminutes,
+         light_min = lightlyactiveminutes, sedentary_min = sedentaryminutes, date = activitydate) %>% 
+  arrange(date)
+head(activity)
+```
+rename the columns of sleep data to lowercase, split date, time, and sort data by date
+```{r}
+sleep <- raw_sleep %>% rename_with(tolower) %>% 
+  rename(date = sleepday, total_record = totalsleeprecords, min_asleep = totalminutesasleep,
+         min_bed = totaltimeinbed) %>% 
+  separate(date, c("date", "time"), sep = " ", extra = "merge") %>% 
+  arrange(date)
+head(sleep)
+```
+
+Finding older and recent date of data
+```{r}
+print(min(activity$date))
+print(max(activity$date))
+print(min(sleep$date))
+print(max(sleep$date))
+```
+
+## Analysis Process
+Finding average and standard deviation of step, distance, and average step and time of each activity type, and average calories
+*distance in km
+```{r}
+activity_summary <- activity %>% summarize(step_avg = mean(totalsteps), step_sd = sd(totalsteps),
+                                        min_step = min(totalsteps), max_step = max(totalsteps),
+                                        dis_avg = mean(total_dis), dis_sd = sd(total_dis),
+                                        veryactive_dis_avg = mean(veryactive_dis), veryactive_dis_sd = sd(veryactive_dis),
+                                        moderate_dis_avg = mean(moderate_dis), moderate_dis_sd = sd(moderate_dis),
+                                        light_dis_avg = mean(light_dis), light_dis_sd = sd(light_dis),
+                                        veryactive_time_avg = mean(veryactive_min),
+                                        veryactive_time_sd = sd(veryactive_min),
+                                        moderate_time_avg = mean(moderate_min), moderate_time_sd = sd(moderate_min),
+                                        light_time_avg = mean(light_min), light_time_sd = sd(light_min),
+                                        sedentary_time_avg = mean(sedentary_min), sedentary_time_sd = sd(sedentary_min),
+                                        calories_avg = mean(calories), calories_sd = sd(calories))
+head(activity_summary)
+```
+Finding summary group by date
+There are missing values on 5/11/2016 and 5/12/2016, so drop it
+```{r}
+activity_date_summary <- activity %>%
+  filter(!((id == 1844505072 & (date == "5/11/2016" | date == "5/12/2016")) |
+             (id == 1927972279 & (date == "5/11/2016" | date == "5/12/2016")))) %>% 
+  select(-"id") %>% 
+  group_by(date) %>% 
+  summarise(step_avg = mean(totalsteps), step_sd = sd(totalsteps),
+         min_step = min(totalsteps), max_step = max(totalsteps),
+         dis_avg = mean(total_dis), dis_sd = sd(total_dis),
+         veryactive_dis_avg = mean(veryactive_dis), veryactive_dis_sd = sd(veryactive_dis),
+         moderate_dis_avg = mean(moderate_dis), moderate_dis_sd = sd(moderate_dis),
+         light_dis_avg = mean(light_dis), light_dis_sd = sd(light_dis),
+         veryactive_time_avg = mean(veryactive_min),
+         veryactive_time_sd = sd(veryactive_min),
+         moderate_time_avg = mean(moderate_min), moderate_time_sd = sd(moderate_min),
+         light_time_avg = mean(light_min), light_time_sd = sd(light_min),
+         sedentary_time_avg = mean(sedentary_min), sedentary_time_sd = sd(sedentary_min),
+         calories_avg = mean(calories), calories_sd = sd(calories)) %>% 
+  arrange(date)
+head(activity_date_summary)
+```
+
+Finding summary group by day of week
+```{r}
+activity_day_summary <- activity %>% mutate(day = weekdays(as.Date(date, format = "%m/%d/%y"))) %>% 
+  filter(!((id == 1844505072 & (date == "5/11/2016" | date == "5/12/2016")) |
+             (id == 1927972279 & (date == "5/11/2016" | date == "5/12/2016")))) %>%
+  select(-c("id","date")) %>% 
+  group_by(day) %>% 
+  summarise(step_avg = mean(totalsteps), step_sd = sd(totalsteps),
+         min_step = min(totalsteps), max_step = max(totalsteps),
+         dis_avg = mean(total_dis), dis_sd = sd(total_dis),
+         veryactive_dis_avg = mean(veryactive_dis), veryactive_dis_sd = sd(veryactive_dis),
+         moderate_dis_avg = mean(moderate_dis), moderate_dis_sd = sd(moderate_dis),
+         light_dis_avg = mean(light_dis), light_dis_sd = sd(light_dis),
+         veryactive_time_avg = mean(veryactive_min),
+         veryactive_time_sd = sd(veryactive_min),
+         moderate_time_avg = mean(moderate_min), moderate_time_sd = sd(moderate_min),
+         light_time_avg = mean(light_min), light_time_sd = sd(light_min),
+         sedentary_time_avg = mean(sedentary_min), sedentary_time_sd = sd(sedentary_min),
+         calories_avg = mean(calories), calories_sd = sd(calories)) %>% 
+  arrange(ordered(day, levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday","Saturday")))
+head(activity_day_summary)
+```
+### Step trend
+```{r}
+ggplot(data = activity_date_summary, aes(x = fct_inorder(date), y = step_avg, group = 1)) +
+  geom_line(color = "darkblue") +
+  geom_point(aes(size = dis_avg, color = dis_avg),alpha = 0.7) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  ylab("average step") +
+  xlab("date") +
+  guides(color = guide_legend(title = "average distance (km)"), size = guide_legend(title = "average distance (km)"))
+```
+
+### Calories plot
+
+```{r}
+ggplot(data = activity_date_summary, aes(x = fct_inorder(date), y = calories_avg, group = 1)) +
+  geom_line(color = "darkblue") +
+  geom_point(aes(size = step_avg, color = dis_avg),alpha = 0.7) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  ylab("average calories (kcal)") +
+  xlab("date") +
+  guides(color = guide_legend(title = "average distance(km)"), size = guide_legend(title = "average step"))
+```
+
+### Distance plot of each active type 
+
+```{r}
+ggplot(data = activity_date_summary, aes(x = fct_inorder(date), y = dis_avg, group = 1)) +
+  geom_line(mapping = aes(y = veryactive_dis_avg), color = "darkred") +
+  geom_point(mapping = aes(y = veryactive_dis_avg)) +
+  geom_line(mapping = aes(y = moderate_dis_avg), color = "darkorange") +
+  geom_point(mapping = aes(y = moderate_dis_avg)) +
+  geom_line(mapping = aes(y = light_dis_avg), color = "darkgreen") +
+  geom_point(mapping = aes(y = light_dis_avg)) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  ylab("average distance (km)") +
+  xlab("date")
+```
+
+### Time plot of each active type
+
+```{r}
+colors <- c("veryactive" = "darkred", "moderate" = "darkorange", "light" = "darkgreen", "sedentary" = "darkblue")
+ggplot(data = activity_date_summary, aes(x = fct_inorder(date), group = 1)) +
+  scale_color_manual(values = colors) +
+  geom_line(mapping = aes(y = veryactive_time_avg, color = "veryactive")) +
+  geom_point(mapping = aes(y = veryactive_time_avg), alpha = 0.5) +
+  geom_line(mapping = aes(y = moderate_time_avg, color = "moderate")) +
+  geom_point(mapping = aes(y = moderate_time_avg), alpha = 0.5) +
+  geom_line(mapping = aes(y = light_time_avg, color = "light")) +
+  geom_point(mapping = aes(y = light_time_avg), alpha = 0.5) +
+  geom_line(mapping = aes(y = sedentary_time_avg, color = "sedentary")) +
+  geom_point(mapping = aes(y = sedentary_time_avg), alpha = 0.5) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(x = "date", y = "average active time (min)", color = "Legend") 
+```
+
+### Scatter plot calories vs step
+
+```{r}
+cor_cal_step <- cor(activity_date_summary$calories_avg,activity_date_summary$step_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = step_avg, y = calories_avg)) +
+  annotate("text", x = 7000, y = 1300, label = paste("cor =", cor_cal_step), color = "darkred") +
+  labs(x = "average step", y = "average calories (kcal)")
+```
+
+### Scatter plot calories vs distance
+
+```{r}
+cor_cal_dis <- cor(activity_date_summary$calories_avg,activity_date_summary$dis_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = dis_avg, y = calories_avg)) +
+  annotate("text", x = 5, y = 1300, label = paste("cor =", cor_cal_dis), color = "darkred") +
+  labs(x = "average distance (km)", y = "average calories (kcal)")
+```
+
+### Scatter plot cal Vs each active type distance
+
+```{r}
+cor_step_active <- cor(activity_date_summary$step_avg,activity_date_summary$veryactive_dis_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = veryactive_dis_avg, y = step_avg)) +
+  annotate("text", x = 1.5, y = 4500, label = paste("cor =", cor_step_active), color = "darkred") + 
+  labs(x = "average very active distace (km)", y = "average step")
+
+cor_step_moderate <- cor(activity_date_summary$step_avg,activity_date_summary$moderate_dis_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = moderate_dis_avg, y = step_avg)) +
+  annotate("text", x = 0.65, y = 4500, label = paste("cor =", cor_step_moderate), color = "darkred") +
+  labs(x = "average moderate active distace (km)", y = "average step")
+
+cor_step_light <- cor(activity_date_summary$step_avg,activity_date_summary$light_dis_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = light_dis_avg, y = step_avg)) +
+  annotate("text", x = 3.5, y = 4500, label = paste("cor =", cor_step_light), color = "darkred") +
+  labs(x = "average light active distace (km)", y = "average step")
+```
+
+### Scatter Plot calories vs each active type distance
+
+```{r}
+cor_cal_active <- cor(activity_date_summary$calories_avg,activity_date_summary$veryactive_dis_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = veryactive_dis_avg, y = calories_avg)) +
+  annotate("text", x = 1.5, y = 1300, label = paste("cor =", cor_cal_active), color = "darkred") +
+  labs(x = "average veryactive distace (km)", y = "average calories (kcal)")
+
+cor_cal_moderate <- cor(activity_date_summary$calories_avg,activity_date_summary$moderate_dis_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = moderate_dis_avg, y = calories_avg)) +
+  annotate("text", x = 0.65, y = 1300, label = paste("cor =", cor_cal_moderate), color = "darkred") +
+  labs(x = "average moderate active distace (km)", y = "average calories (kcal)")
+
+cor_cal_light <- cor(activity_date_summary$calories_avg,activity_date_summary$light_dis_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = light_dis_avg, y = calories_avg)) +
+  annotate("text", x = 3.5, y = 1300, label = paste("cor =", cor_cal_light), color = "darkred") +
+  labs(x = "average light active distace (km)", y = "average calories (kcal)")
+```
+
+### Scatter plot calories vs each active type time
+
+```{r}
+cor_cal_active_t <- cor(activity_date_summary$calories_avg,activity_date_summary$veryactive_time_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = veryactive_time_avg, y = calories_avg)) +
+  annotate("text", x = 22, y = 1300, label = paste("cor =", cor_cal_active_t), color = "darkred") +
+  labs(x = "average veryactive time (min)", y = "average calories (kcal)")
+
+cor_cal_moderate_t <- cor(activity_date_summary$calories_avg,activity_date_summary$moderate_time_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = moderate_time_avg, y = calories_avg)) +
+  annotate("text", x = 15, y = 1300, label = paste("cor =", cor_cal_moderate_t), color = "darkred") +
+  labs(x = "average moderate active time (min)", y = "average calories (kcal)")
+
+cor_cal_light_t <- cor(activity_date_summary$calories_avg,activity_date_summary$light_time_avg)
+ggplot(data = activity_date_summary) +
+  geom_point(mapping = aes(x = light_time_avg, y = calories_avg)) +
+  annotate("text", x = 210, y = 1300, label = paste("cor =", cor_cal_light_t), color = "darkred") +
+  labs(x = "average light active time (min)", y = "average calories (kcal)")
+```
+
+### Step Plot
+
+```{r}
+ggplot(data = activity_day_summary) +
+  geom_col(mapping = aes(x = fct_inorder(day), y = step_avg, fill = dis_avg)) +
+  labs(x = "day of week", y = "average step", fill = "average distance (km)")
+```
+
+### Distance plot of each active type
+
+```{r}
+active_dis_diff <- max(activity_day_summary$veryactive_dis_avg) - min(activity_day_summary$veryactive_dis_avg)
+active_time_diff <- max(activity_day_summary$veryactive_time_avg) - min(activity_day_summary$veryactive_time_avg)
+ggplot(data = activity_day_summary) +
+  geom_col(mapping = aes(x = fct_inorder(day), y = veryactive_dis_avg, fill = veryactive_time_avg)) +
+  labs(caption = paste("min_max_dist_diff = ",active_dis_diff*1000," m, ","min_max_time_diff = ",
+                       active_time_diff, " min"), x = "day of week", y = "average veryactive distance",
+       color = "average active time")
+
+moderate_dis_diff <- max(activity_day_summary$moderate_dis_avg) - min(activity_day_summary$moderate_dis_avg)
+moderate_time_diff <- max(activity_day_summary$moderate_time_avg) - min(activity_day_summary$moderate_time_avg)
+ggplot(data = activity_day_summary) +
+  geom_col(mapping = aes(x = fct_inorder(day), y = moderate_dis_avg, fill = moderate_time_avg)) +
+  labs(caption = paste("min_max_dist_diff = ",moderate_dis_diff*1000," m, ","min_max_time_diff = ",
+                       moderate_time_diff, " min"), x = "day of week", y = "average moderate active distance",
+       color = "average active time")
+
+light_dis_diff <- max(activity_day_summary$light_dis_avg) - min(activity_day_summary$light_dis_avg)
+light_time_diff <- max(activity_day_summary$light_time_avg) - min(activity_day_summary$light_time_avg)
+ggplot(data = activity_day_summary) +
+  geom_col(mapping = aes(x = fct_inorder(day), y = light_dis_avg, fill = light_time_avg)) +
+  labs(caption = paste("min_max_dist_diff = ",light_dis_diff*1000," m, ","min_max_time_diff = ",
+                       light_time_diff, " min"), x = "day of week", y = "average light active distance",
+       color = "average active time")
+```
+From knowing co-relation between light active time and calories, consider co-relation between light active time and sleep time
+
+Preparing sleep data group by date
+
+```{r}
+sleep_date_summary <- sleep %>% group_by(date) %>% 
+  summarise(min_asleep_avg = mean(min_asleep), min_asleep_sd = sd(min_asleep), min_bed_avg = mean(min_bed),
+            min_bed_sd = sd(min_bed), sleep_diff_avg = mean(min_bed - min_asleep))
+head(sleep_date_summary)
+```
+Merge data between activity and sleep data
+```{r}
+activity_sleep <- merge(activity_date_summary, sleep_date_summary, by = "date") %>% 
+  select(date, step_avg, dis_avg, light_dis_avg, light_time_avg, calories_avg, min_asleep_avg, min_asleep_sd, min_bed_avg,
+         min_bed_sd, sleep_diff_avg)
+head(activity_sleep)
+```
+
+### Scatter plot sleep time vs light active distance & time
+
+```{r}
+cor_sleep_light <- cor(activity_sleep$min_asleep_avg, activity_sleep$light_dis_avg)
+ggplot(data = activity_sleep) +
+  geom_point(mapping = aes(x = light_dis_avg, y = min_asleep_avg)) +
+  annotate("text", x = 3.6, y = 350, label = paste("cor = ",cor_sleep_light), color = "darkred") +
+  labs(x = "average light active distance (km)", y = "average sleep time (min)")
+
+cor_sleep_light_t <- cor(activity_sleep$min_asleep_avg, activity_sleep$light_time_avg)
+ggplot(data = activity_sleep) +
+  geom_point(mapping = aes(x = light_time_avg, y = min_asleep_avg)) +
+  annotate("text", x = 210, y = 350, label = paste("cor = ",cor_sleep_light_t), color = "darkred") +
+  labs(x = "average light active time (min)", y = "average sleep time (min)")
+```
+
+### Scatter plot sleep time vs step
+
+```{r}
+cor_step_sleep <- cor(activity_sleep$step_avg, activity_sleep$min_asleep_avg)
+ggplot(data = activity_sleep) +
+  geom_point(mapping = aes(x = step_avg, y = min_asleep_avg)) +
+  annotate("text", x = 8000, y = 350, label = paste("cor = ",cor_step_sleep), color = "darkred") +
+  labs(x = "average step", y = "average sleep time (min)")
+```
+
+### Scatter plot sleep time vs distance
+
+```{r}
+cor_dis_sleep <- cor(activity_sleep$dis_avg, activity_sleep$min_asleep_avg)
+ggplot(data = activity_sleep) +
+  geom_point(mapping = aes(x = dis_avg, y = min_asleep_avg)) +
+  annotate("text", x = 5.5, y = 350, label = paste("cor = ",cor_dis_sleep), color = "darkred") +
+  labs(x = "average distance (km)", y = "average sleep time (min)")
+```
+
+### Scatter plot sleep time diff vs step
+
+```{r}
+cor_step_sleep_diff <- cor(activity_sleep$step_avg, activity_sleep$sleep_diff_avg)
+ggplot(data = activity_sleep) +
+  geom_point(mapping = aes(x = step_avg, y = sleep_diff_avg)) +
+  annotate("text", x = 8000, y = 10, label = paste("cor = ",cor_step_sleep_diff), color = "darkred") +
+  labs(x = "average step", y = "average difference sleep time (min)",
+       caption = "metric difference sleep time: bed time - actual sleep time")
+```
+
+### Scatter plot sleep time diff vs distance
+
+```{r}
+cor_dis_sleep_diff <- cor(activity_sleep$dis_avg, activity_sleep$sleep_diff_avg)
+ggplot(data = activity_sleep) +
+  geom_point(mapping = aes(x = dis_avg, y = sleep_diff_avg)) +
+  annotate("text", x = 5.5, y = 10, label = paste("cor = ",cor_dis_sleep_diff), color = "darkred") +
+  labs(x = "average distance (km)", y = "average sleep time (min)",
+       caption = "metric difference sleep time: bed time - actual sleep time")
+```
+
+### Scatter plot sleep time vs calories
+
+```{r}
+cor_cal_sleep <- cor(activity_sleep$calories_avg, activity_sleep$min_asleep_avg)
+ggplot(data = activity_sleep) +
+  geom_point(mapping = aes(x = calories_avg, y = min_asleep_avg)) +
+  annotate("text", x = 2100, y = 350, label = paste("cor = ",cor_cal_sleep), color = "darkred") +
+  labs(x = "average calories (kcal)", y = "average sleep time (min)",
+       caption = "metric difference sleep time: bed time - actual sleep time")
+```
+
+There seem like no trend between activity data and sleep time
+
+## Summarise
+
+ * Users are more likely to walk than run or jogging.
+ * Calories burning has a correlation with step of users.
+ * The more time users spend on light activity, the more calories burned.
+ * Users are doing more light activity between Wednesday and Thursday.
+ * There is no correlation between activity and sleep time data.
+ 
+## High-level Recommendation
+ 
+ * Promote the Time to users who love to do light activities. And provide information that doing more light activity causes more calories to burn.
+  
